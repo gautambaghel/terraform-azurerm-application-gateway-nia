@@ -68,8 +68,8 @@ buffer_period {
 }
 
 consul {
-  address = "http://${azurerm_linux_virtual_machine.consul.public_ip_address}:8500"
-  token   = "${random_uuid.consul_bootstrap_token.result}"
+  address = "${hcp_consul_cluster.main.consul_public_endpoint_url}"
+  token   = "${hcp_consul_cluster_root_token.token.secret_id}"
 }
 
 driver "terraform" {
@@ -131,8 +131,8 @@ buffer_period {
 }
 
 consul {
-  address = "http://${azurerm_linux_virtual_machine.consul.public_ip_address}:8500"
-  token   = "${random_uuid.consul_bootstrap_token.result}"
+  address = "${hcp_consul_cluster.main.consul_public_endpoint_url}"
+  token   = "${hcp_consul_cluster_root_token.token.secret_id}"
 }
 
 driver "terraform" {

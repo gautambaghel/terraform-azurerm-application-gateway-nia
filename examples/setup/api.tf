@@ -15,7 +15,7 @@ resource "azurerm_network_interface" "api" {
 }
 
 resource "azurerm_linux_virtual_machine" "api" {
-  depends_on          = [azurerm_linux_virtual_machine.consul]
+  depends_on          = [hcp_consul_cluster.main]
   name                = "${var.name}-api"
   resource_group_name = azurerm_resource_group.test.name
   location            = azurerm_resource_group.test.location
@@ -29,7 +29,7 @@ resource "azurerm_linux_virtual_machine" "api" {
 
   admin_ssh_key {
     username   = "adminuser"
-    public_key = file("./.ssh/id_rsa.pub")
+    public_key = file("~/.ssh/id_rsa.pub")
   }
 
   os_disk {
@@ -45,12 +45,11 @@ resource "azurerm_linux_virtual_machine" "api" {
   }
 
   custom_data = base64encode(templatefile("scripts/api.sh", {
-    CONSUL_SERVER      = azurerm_linux_virtual_machine.consul.private_ip_address
-    GOSSIP_KEY         = random_id.gossip_key.b64_std
-    CA_PUBLIC_KEY      = tls_self_signed_cert.ca_cert.cert_pem
-    CLIENT_PUBLIC_KEY  = tls_locally_signed_cert.client_web_signed_cert.cert_pem
-    CLIENT_PRIVATE_KEY = tls_private_key.client_web_key.private_key_pem
-    BOOTSTRAP_TOKEN    = random_uuid.consul_bootstrap_token.result
+    CONSUL_SERVER      = replace(hcp_consul_cluster.main.consul_public_endpoint_url,"https://","")
+    GOSSIP_KEY         = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["encrypt"]
+    CA_PUBLIC_KEY      = base64decode(hcp_consul_cluster.main.consul_ca_file)
+    BOOTSTRAP_TOKEN    = hcp_consul_cluster_root_token.token.secret_id
+    DATACENTER         = hcp_consul_cluster.main.datacenter
     CONSUL_VERSION     = var.consul_version
     ENVOY_VERSION      = var.envoy_version
   }))

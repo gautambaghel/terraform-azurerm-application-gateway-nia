@@ -20,14 +20,6 @@ cat > /etc/consul.d/certs/consul-agent-ca.pem <<- EOF
 ${CA_PUBLIC_KEY}
 EOF
 
-cat > /etc/consul.d/certs/client-cert.pem <<- EOF
-${CLIENT_PUBLIC_KEY}
-EOF
-
-cat > /etc/consul.d/certs/client-key.pem <<- EOF
-${CLIENT_PRIVATE_KEY}
-EOF
-
 # Modify the default consul.hcl file
 cat > /etc/consul.d/consul.hcl <<- EOF
 data_dir = "/opt/consul"
@@ -35,6 +27,8 @@ data_dir = "/opt/consul"
 client_addr = "0.0.0.0"
 
 server = false
+
+datacenter = ${DATACENTER}
 
 bind_addr = "0.0.0.0"
 
@@ -44,7 +38,7 @@ retry_join = ["${CONSUL_SERVER}"]
 
 encrypt = "${GOSSIP_KEY}"
 
-verify_incoming = true
+verify_incoming = false
 
 verify_outgoing = true
 
@@ -52,9 +46,9 @@ verify_server_hostname = true
 
 ca_file = "/etc/consul.d/certs/consul-agent-ca.pem"
 
-cert_file = "/etc/consul.d/certs/client-cert.pem"
-
-key_file = "/etc/consul.d/certs/client-key.pem"
+auto_encrypt = {
+  tls = true
+}
 
 acl = {
   enabled = true
