@@ -17,7 +17,7 @@ setup_cts_files () {
 setup_deps
 setup_cts_files
 
-git clone https://github.com/gautambaghel/terraform-azurerm-application-gateway-nia
+git clone --branch hashicups https://github.com/gautambaghel/terraform-azurerm-application-gateway-nia
 
 mv cts-config-basic.hcl terraform-azurerm-application-gateway-nia/examples
 mv cts-config-basic.hcl terraform-azurerm-application-gateway-nia/examples
