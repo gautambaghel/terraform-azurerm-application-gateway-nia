@@ -68,7 +68,7 @@ buffer_period {
 }
 
 consul {
-  address = "${hcp_consul_cluster.main.consul_public_endpoint_url}"
+  address = "${hcp_consul_cluster.main.consul_private_endpoint_url}"
   token   = "${hcp_consul_cluster_root_token.token.secret_id}"
 }
 
@@ -91,16 +91,37 @@ terraform_provider "azurerm" {
 }
 
 service {
- name = "api"
+ name = "frontend"
  cts_user_defined_meta = {
-   host_name = "api.cts.hashicorp.com"
+   host_name = "frontend.cts.hashicorp.com"
  }
 }
 
 service {
- name = "web"
+ name = "product-public-api"
  cts_user_defined_meta = {
-   host_name = "web.cts.hashicorp.com"
+   host_name = "product-public-api.cts.hashicorp.com"
+ }
+}
+
+service {
+ name = "payment-api"
+ cts_user_defined_meta = {
+   host_name = "payment-api.cts.hashicorp.com"
+ }
+}
+
+service {
+ name = "product-api"
+ cts_user_defined_meta = {
+   host_name = "product-api.cts.hashicorp.com"
+ }
+}
+
+service {
+ name = "product-db"
+ cts_user_defined_meta = {
+   host_name = "product-db.cts.hashicorp.com"
  }
 }
 
@@ -109,7 +130,7 @@ task {
  description    = "Example task with two services and basic routing"
  providers      = ["azurerm"]
  source         = "../"
- services       = ["api", "web"]
+ services       = ["frontend", "product-public-api", "payment-api", "product-api", "product-db"]
  variable_files = ["cts-example-basic.tfvars"]
 }
 EOT
@@ -131,7 +152,7 @@ buffer_period {
 }
 
 consul {
-  address = "${hcp_consul_cluster.main.consul_public_endpoint_url}"
+  address = "${hcp_consul_cluster.main.consul_private_endpoint_url}"
   token   = "${hcp_consul_cluster_root_token.token.secret_id}"
 }
 
@@ -154,16 +175,37 @@ terraform_provider "azurerm" {
 }
 
 service {
- name = "api"
+ name = "frontend"
  cts_user_defined_meta = {
-   path      = "/api/*"
+   path      = "/coffee/*"
  }
 }
 
 service {
- name = "web"
+ name = "product-public-api"
  cts_user_defined_meta = {
-   path      = "/web/*"
+   path      = "/coffee/*"
+ }
+}
+
+service {
+ name = "payment-api"
+ cts_user_defined_meta = {
+   path      = "/checkout/*"
+ }
+}
+
+service {
+ name = "product-api"
+ cts_user_defined_meta = {
+   path      = "/coffee/*"
+ }
+}
+
+service {
+ name = "product-db"
+ cts_user_defined_meta = {
+   path      = "/coffee/*"
  }
 }
 
@@ -172,9 +214,29 @@ task {
  description    = "Example task with two services and path-based routing"
  providers      = ["azurerm"]
  source         = "../"
- services       = ["api", "web"]
+ services       = ["frontend", "product-public-api", "payment-api", "product-api", "product-db"]
  variable_files = ["cts-example-path.tfvars"]
 }
 EOT
   filename = "../cts-config-path.hcl"
+}
+
+# Step 3: Create a vm that is in the same subnet and runs CTS
+module "vm_client" {
+
+  depends_on = [local_file.cts_config_basic]
+  source = "../../cts-vm"
+
+  resource_group = azurerm_resource_group.rg.name
+  location       = azurerm_resource_group.rg.location
+
+  nsg_name                 = azurerm_network_security_group.nsg.name
+  allowed_ssh_cidr_blocks  = ["0.0.0.0/0"]
+  allowed_http_cidr_blocks = ["0.0.0.0/0"]
+  subnet_id                = module.network.vnet_subnets[0]
+
+  client_config_file = hcp_consul_cluster.main.consul_config_file
+  client_ca_file     = hcp_consul_cluster.main.consul_ca_file
+  root_token         = hcp_consul_cluster_root_token.token.secret_id
+  consul_version     = hcp_consul_cluster.main.consul_version
 }

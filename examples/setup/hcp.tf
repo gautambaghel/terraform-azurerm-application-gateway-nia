@@ -8,6 +8,8 @@ locals {
   vnet_subnets   = var.vnet_subnets
 }
 
+data "azurerm_subscription" "current" {}
+
 # Parent resource group
 resource "azurerm_resource_group" "rg" {
   name     = "${local.cluster_id}-gid"
@@ -78,4 +80,22 @@ resource "hcp_consul_cluster" "main" {
 
 resource "hcp_consul_cluster_root_token" "token" {
   cluster_id = hcp_consul_cluster.main.id
+}
+
+# Step 3: Create a vm that runs nomad and consul and registers some services
+module "vm_client" {
+  source = "../../hcp-vm-client"
+
+  resource_group = azurerm_resource_group.rg.name
+  location       = azurerm_resource_group.rg.location
+
+  nsg_name                 = azurerm_network_security_group.nsg.name
+  allowed_ssh_cidr_blocks  = ["0.0.0.0/0"]
+  allowed_http_cidr_blocks = ["0.0.0.0/0"]
+  subnet_id                = module.network.vnet_subnets[0]
+
+  client_config_file = hcp_consul_cluster.main.consul_config_file
+  client_ca_file     = hcp_consul_cluster.main.consul_ca_file
+  root_token         = hcp_consul_cluster_root_token.token.secret_id
+  consul_version     = hcp_consul_cluster.main.consul_version
 }
