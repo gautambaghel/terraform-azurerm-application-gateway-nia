@@ -1,8 +1,24 @@
+# Azure data sources unfortunately rely on name, and resource group name which will never be computed
+# fields since they are known input fields. This results in the terraform failing since the data
+# source tries to look them up before they are actually created. In aws data sources take computed
+# and randomized unique names so we never have this problem.
+#
+# To get around this we are using the id of the vnet and the subnet (which are computed fields)
+# to look them up. The benefit of this is that Azure ids have a known structure (unlike aws ids)
+# that is unlikely to ever change:
+#
+# /subscriptions/<subscription id>/resourceGroups/<resource group name>/providers/Microsoft.Network/virtualNetworks/<vnet name>
+#
+# Using this known structure we can trim the prefix after matching everything up to virtualNetworks/
+data "azurerm_virtual_network" "vnet" {
+  name                = trimprefix(module.network.vnet_id, regex(".*virtualNetworks\\/", module.network.vnet_id))
+  resource_group_name = azurerm_resource_group.rg.name
+}
 
 resource "azurerm_public_ip" "gateway" {
   name                = var.name
-  resource_group_name = azurerm_resource_group.test.name
-  location            = azurerm_resource_group.test.location
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
   allocation_method   = "Dynamic"
   sku                 = "Basic"
   tags                = var.tags
@@ -10,16 +26,16 @@ resource "azurerm_public_ip" "gateway" {
 
 resource "azurerm_subnet" "gateway" {
   name                 = "${var.name}-gateway"
-  resource_group_name  = azurerm_resource_group.test.name
-  virtual_network_name = azurerm_virtual_network.test.name
-  address_prefixes     = ["10.0.3.0/24"]
+  resource_group_name  = azurerm_resource_group.rg.name
+  virtual_network_name = data.azurerm_virtual_network.vnet.name
+  address_prefixes     = ["10.0.4.0/24"]
 }
 
 resource "local_file" "cts_tfvars_basic" {
   content  = <<EOT
 name                            = "nia-testing"
-azurerm_resource_group_name     = "${azurerm_resource_group.test.name}"
-azurerm_resource_group_location = "${azurerm_virtual_network.test.location}"
+azurerm_resource_group_name     = "${azurerm_resource_group.rg.name}"
+azurerm_resource_group_location = "${azurerm_resource_group.rg.location}"
 azurerm_public_ip_id            = "${azurerm_public_ip.gateway.id}"
 azurerm_service_subnet_id       = "${azurerm_subnet.gateway.id}"
 private_ip_address_allocation   = "Dynamic"
@@ -37,8 +53,8 @@ EOT
 resource "local_file" "cts_tfvars_path" {
   content  = <<EOT
 name                            = "nia-testing"
-azurerm_resource_group_name     = "${azurerm_resource_group.test.name}"
-azurerm_resource_group_location = "${azurerm_virtual_network.test.location}"
+azurerm_resource_group_name     = "${azurerm_resource_group.rg.name}"
+azurerm_resource_group_location = "${azurerm_resource_group.rg.location}"
 azurerm_public_ip_id            = "${azurerm_public_ip.gateway.id}"
 azurerm_service_subnet_id       = "${azurerm_subnet.gateway.id}"
 private_ip_address_allocation   = "Dynamic"
@@ -68,7 +84,7 @@ buffer_period {
 }
 
 consul {
-  address = "${hcp_consul_cluster.main.consul_private_endpoint_url}"
+  address = "${hcp_consul_cluster.main.consul_public_endpoint_url}"
   token   = "${hcp_consul_cluster_root_token.token.secret_id}"
 }
 
@@ -152,7 +168,7 @@ buffer_period {
 }
 
 consul {
-  address = "${hcp_consul_cluster.main.consul_private_endpoint_url}"
+  address = "${hcp_consul_cluster.main.consul_public_endpoint_url}"
   token   = "${hcp_consul_cluster_root_token.token.secret_id}"
 }
 
@@ -222,10 +238,10 @@ EOT
 }
 
 # Step 3: Create a vm that is in the same subnet and runs CTS
-module "vm_client" {
+module "vm_cts" {
 
   depends_on = [local_file.cts_config_basic]
-  source = "../../cts-vm"
+  source = "../cts-vm"
 
   resource_group = azurerm_resource_group.rg.name
   location       = azurerm_resource_group.rg.location

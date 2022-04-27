@@ -53,7 +53,7 @@ variable "nsg_name" {
 variable "prefix" {
   type        = string
   description = "Add a prefix to all resoures in module for uniqueness"
-  default     = "vmclient"
+  default     = "vmclient-cts"
 }
 
 variable "vpc_cidr" {
