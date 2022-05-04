@@ -123,7 +123,7 @@ You'll notice that you have a few files under `examples/`, which represent a bsi
    export TF_VAR_ARM_SUBSCRIPTION_ID=""
    ```
 
-3. Uncomment the latter half of `cts.tf` to create the Azure VM and run CTS
+3. Uncomment the latter half of [cts.tf](https://github.com/gautambaghel/terraform-azurerm-application-gateway-nia/blob/hashicups/examples/setup/cts.tf?plain=1#L138-L198)  to create the Azure VM and run CTS
 
    ```shell
    terraform apply
@@ -139,7 +139,7 @@ Azure Application Gateway will be created if it doesn't already exists
 
 ### Step 3
 
-1. Uncomment the latter half of `hcp.tf` to create a duplicate VM with HashiCups services registered on Consul
+1. Uncomment the latter half of [hcp.tf](https://github.com/gautambaghel/terraform-azurerm-application-gateway-nia/blob/hashicups/examples/setup/hcp.tf?plain=1#L107-L130) to create a duplicate VM with HashiCups services registered on Consul
 
 ```shell
 $ terraform init && terraform apply
