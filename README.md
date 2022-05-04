@@ -1,4 +1,4 @@
-# Consul Terraform Sync module for Azure Application Gateway
+# Consul Terraform Sync for Azure Application Gateway (using HCP Consul)
 
 This module uses service variables from [Consul Terraform
 Sync](https://www.consul.io/docs/nia/configuration) to configure an [Azure
@@ -8,20 +8,231 @@ It's been tested with:
 
 - Consul-Terraform-Sync (CTS) v0.5.2
 - Terraform v1.0.8
-- Consul v1.11.5
+- HCP Consul v1.11.5
 
-## Requirements
+| Requirements | | Providers | |
+|------|---------|------|---------|
+| Name | Version | Name | Version |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.0 | <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | 2.90.0 |
+| <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | >= 2.90 | <a name="provider_azuread"></a> [azuread](#provider\_azuread) | 2.14.0 |
+| | | <a name="provider_hcp"></a> [hcp](#provider\_hcp) | 0.26.0 |
 
-| Name | Version |
-|------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.0 |
-| <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | >= 2.90 |
+## Usage
 
-## Providers
+This repository demonstrates how an Application can be configured to automatically apply network and security infrastructure changes reacting to changes in the Consul service catalog. 
 
-| Name | Version |
-|------|---------|
-| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | 2.90.0 |
+There are 3 steps to achieve this
+
+Step 1: Setup HCP Consul with Azure, create the demo app and register it on HCP Consul
+
+- Create and accept a peering connection between the HVN and VNet
+- Create HVN routes that will direct HCP traffic to the CIDR ranges of the subnets.
+- Create Azure ingress rules necessary for HCP Consul to communicate to Consul clients.
+- Create Azure VM to spin up the demo application and register it on HCP Consul
+
+Step 2: Setup [Consul Terraform Sync](https://www.consul.io/docs/nia/configuration) to watch changes
+
+- Generate CTS config and variables files
+- Create Azure VM, copy over the config file and start CTS to monitor Consul
+
+Step 3: Create an additonal instance of the demo app and register with Consul
+
+- Create Azure VM to spin up the demo application and register it on HCP Consul
+
+### Output
+
+- When the second instance is spun and registered with Consul, CTS will automatically detect service catalog changes and update the [Azure application gateway](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/application_gateway) backend pools
+
+> Note: This example is not a reflection of a production configuration. Its purpose is to help you test this module for your configurations.
+
+## Setup
+
+### Step 1
+1. Go into the `examples/setup/` directory.
+   ```shell
+   $ cd examples/setup
+   ```
+
+> Optional -- If you don't want to use your default public key
+2. Generate an SSH key so you can log into the machine under the `./.ssh` directory. Please change the location in `cts.tf` file
+   ```shell
+   $ ssh-keygen -t rsa -f ./.ssh/id_rsa
+   ```
+
+3. Create a HCP Service Key and set the required environment variables
+
+```
+export HCP_CLIENT_ID=...
+export HCP_CLIENT_SECRET=...
+```
+
+4. Log into Azure via the Azure CLI, and set the correct subscription. More details can be found on the [Azure Terraform provider documentation](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/guides/azure_cli).
+
+```
+az login
+az account set --subscription="SUBSCRIPTION_ID"
+```
+
+5. Apply the Terraform configuration. This creates a HCP Consul cluster, a VM with hashicups demo app running & registered with Consul and CTS config/var files
+```shell
+$ terraform init && terraform apply
+```
+
+### Output of this step
+
+The HCP Consul cluster can be accessed via the outputs `consul_url` and `consul_root_token`. You can access the HashiCups application by visiting `hashicups_url`
+
+> Optional -- If you want to see nomad and consul client running
+You can ssh into the client VM using the Azure public IP and ssh key used 
+```shell
+  $ ssh adminuser@hashicups_url_ip_address
+```
+
+![Consul services running](screenshots/01-consul-hashicups.png)
+
+***
+
+![HashiCups running](screenshots/02-hashicups-running.png)
+
+You'll notice that you have a few files under `examples/`, which represent a bsic CTS configuration.
+   ```shell
+   $ ls cts-*
+   cts-config-basic.hcl   cts-example-basic.tfvars
+   ```
+
+***
+
+> Warning -- Make sure HCP consul and HashiCups are up and running before proceeding to Step 2
+
+### Step 2
+
+1. Create Azure Active Directory Service Principal using the following commands
+
+   ```shell
+   az ad sp create-for-rbac --role="Contributor" --scopes="/subscriptions/SUBSCRIPTION_ID"
+   ```
+
+![Azure env config](screenshots/04-azure-environment-setup.png)
+
+2. Set the following environment variables, this is required so that CTS VM can create/update Azure Application Gateway
+
+   ```shell
+   export TF_VAR_ARM_CLIENT_SECRET=""
+   export TF_VAR_ARM_CLIENT_ID=""
+   export TF_VAR_ARM_TENANT_ID=""
+   export TF_VAR_ARM_SUBSCRIPTION_ID=""
+   ```
+
+3. Uncomment the latter half of `cts.tf` to create the Azure VM and run CTS
+
+   ```shell
+   terraform apply
+   ```
+### Output of this step
+
+Azure Application Gateway will be created if it doesn't already exists
+
+
+![Azure backend pools](screenshots/03-azure-gateway-backend-pools.png)
+
+***
+
+### Step 3
+
+1. Uncomment the latter half of `hcp.tf` to create a duplicate VM with HashiCups services registered on Consul
+
+```shell
+$ terraform init && terraform apply
+```
+
+### Output of this step
+
+> Warning: This can take upto ~15 mins to be updated
+
+Azure Application Gateway's backend pool will be updated
+
+
+![Azure env config](screenshots/05-consul-hashicups-updated.png)
+
+***
+
+![Azure backend pools updated](screenshots/06-azure-gateway-backend-pools-updated.png)
+
+### Cleanup
+
+1. SSH into the CTS VM to destroy Azure Application Gateway
+
+   ```shell
+   ssh adminuser@CTS_VM_IP_ADDRESS
+   ```
+
+2. Go to `terraform-azurerm-application-gateway-nia/examples`.
+   ```shell
+   cd terraform-azurerm-application-gateway-nia/examples
+   ```
+
+3. Delete resources created by CTS.
+   ```shell
+   ./terraform destroy -auto-approve
+   ```
+
+4. Exit the CTS VM
+   ```shell
+   exit
+   ```
+
+4. Delete resources in the example.
+   ```shell
+   cd examples/setup && terraform destroy -auto-approve
+   ```
+
+### Testing the Module
+
+The `tests/` directory includes example service variable definitions under
+`fixtures/`. You can check the transformations in the module using the fixtures
+in this directory.
+
+However, you will need to generate the following, as they are secrets that get
+passed to the module for testing certificates.
+
+- Frontend certificates, like `cts.hashicorp.com.pfx`
+- Backend certificates, like `key.pem` or `cert.pem`
+
+### Submodules
+
+The `modules/` directory contains a set of prototype submodules that take an
+input and transform the output for use in the main module.
+
+- `backend_http_settings` - a submodule that parses CTS user-defined metadata
+  for backend HTTP settings.
+- `probe` - a submodule that parses CTS user-defined metadata for custom probe
+  configuration.
+- `routing/`
+    - `basic/` - a submodule that outputs `request_routing_rule`,
+      `http_listener` configurations for host-header routing
+    - `path_based/` - a submodule that outputs `request_routing_rule`,
+      `http_listener`, and `url_path_map` configurations for path-based routing
+
+### Caveats
+
+- Azure Application Gateways handle web traffic (Layer 7).
+
+- This module has not been tested with WAF.
+
+- If you enable a custom probe, the module will [pick the host name from the
+  backend
+  address](https://docs.microsoft.com/en-us/azure/application-gateway/configuration-http-settings#pick-host-name-from-back-end-address).
+
+- If you use SKU v1, the module will use authentication certificates for backend
+  certificates. If you use SKU v2, the module will use trusted root
+  certificates. Review
+  [documentation](https://docs.microsoft.com/en-us/azure/application-gateway/certificates-for-backend-authentication)
+  on backend authentication.
+
+- Custom error configuration is set per `http_listener` on the gateway.
+
+- You cannot define `redirect_configuration`, as they will override the
+  CTS-managed addresses in backend pools.
 
 ## Modules
 
@@ -37,6 +248,13 @@ It's been tested with:
 | Name | Type |
 |------|------|
 | [azurerm_application_gateway.service](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/application_gateway) | resource |
+
+## Outputs
+
+| Name | Description |
+|------|-------------|
+| <a name="output_azurerm_application_gateway_id"></a> [azurerm\_application\_gateway\_id](#output\_azurerm\_application\_gateway\_id) | The ID of the Azure application gateway |
+
 
 ## Inputs
 
@@ -119,142 +337,3 @@ variable include the following:
 - `authentication_certificate`
 - `trusted_root_certificate`
 - `custom_error_configurations`
-
-## Outputs
-
-| Name | Description |
-|------|-------------|
-| <a name="output_azurerm_application_gateway_id"></a> [azurerm\_application\_gateway\_id](#output\_azurerm\_application\_gateway\_id) | The ID of the Azure application gateway |
-
-
-## Usage
-
-### Example
-
-This module repository includes an example. The setup for the example includes:
-
-- Resource group (default name is `testing`)
-- Networks and security groups
-- Consul server on a virtual machine (not a secure configuration)
-- API virtual machine (with Consul client)
-- Web virtual machine (with Consul client)
-
-> Note: This example is not a reflection of a production configuration. Its
-> purpose is to help you test this module for your configurations.
-
-#### Setup
-
-1. Go into the `examples/setup/` directory.
-   ```shell
-   $ cd examples/setup
-   ```
-
-1. Generate an SSH key so you can log into the machine under the `./.ssh`
-   directory.
-   ```shell
-   $ ssh-keygen -t rsa -f ./.ssh/id_rsa
-   ```
-
-1. Set the following environment variables so you can run the configuration.
-   ```shell
-   export ARM_CLIENT_SECRET=""
-   export ARM_CLIENT_ID=""
-   export ARM_TENANT_ID=""
-   export ARM_SUBSCRIPTION_ID=""
-   ```
-
-1. Apply the Terraform configuration. This creates a resource group, two
-   subnets, a testing Consul server, and two virtual machines called `web` and
-   `api`.
-  ```shell
-  $ terraform apply
-  ```
-
-#### Run CTS
-
-1. Go back up to `examples/`.
-   ```shell
-   $ cd ..
-   ```
-
-1. You'll notice that you have a few files under `examples/`, which represent
-   the different CTS configurations you can use.
-   ```shell
-   $ ls cts-*
-   cts-config-basic.hcl     cts-config-path.hcl      cts-example-basic.tfvars cts-example-path.tfvars
-   ```
-
-1. Run CTS and pass the configuration file of your choice. You
-   can choose between basic and path-based routing. The configuration locally
-   references the application gateway module to synchronizes `web` and `api`
-   services to an application gateway.
-   ```shell
-   $ consul-terraform-sync -config-file cts-config-<basic|path>.hcl
-   ```
-
-#### Cleanup
-
-1. Check you are in the `examples/` directory.
-
-1. Go to `sync-tasks/testing`.
-   ```shell
-   cd sync-tasks/testing
-   ```
-
-1. Delete resources created by CTS.
-   ```shell
-   terraform destroy -auto-approve
-   ```
-
-1. Delete resources in the example.
-   ```shell
-   cd ../../setup && terraform destroy -auto-approve
-   ```
-
-### Testing the Module
-
-The `tests/` directory includes example service variable definitions under
-`fixtures/`. You can check the transformations in the module using the fixtures
-in this directory.
-
-However, you will need to generate the following, as they are secrets that get
-passed to the module for testing certificates.
-
-- Frontend certificates, like `cts.hashicorp.com.pfx`
-- Backend certificates, like `key.pem` or `cert.pem`
-
-### Submodules
-
-The `modules/` directory contains a set of prototype submodules that take an
-input and transform the output for use in the main module.
-
-- `backend_http_settings` - a submodule that parses CTS user-defined metadata
-  for backend HTTP settings.
-- `probe` - a submodule that parses CTS user-defined metadata for custom probe
-  configuration.
-- `routing/`
-    - `basic/` - a submodule that outputs `request_routing_rule`,
-      `http_listener` configurations for host-header routing
-    - `path_based/` - a submodule that outputs `request_routing_rule`,
-      `http_listener`, and `url_path_map` configurations for path-based routing
-
-### Caveats
-
-- Azure Application Gateways handle web traffic (Layer 7).
-
-- This module has not been tested with WAF.
-
-- If you enable a custom probe, the module will [pick the host name from the
-  backend
-  address](https://docs.microsoft.com/en-us/azure/application-gateway/configuration-http-settings#pick-host-name-from-back-end-address).
-
-- If you use SKU v1, the module will use authentication certificates for backend
-  certificates. If you use SKU v2, the module will use trusted root
-  certificates. Review
-  [documentation](https://docs.microsoft.com/en-us/azure/application-gateway/certificates-for-backend-authentication)
-  on backend authentication.
-
-- Custom error configuration is set per `http_listener` on the gateway.
-
-- You cannot define `redirect_configuration`, as they will override the
-  CTS-managed addresses in backend pools.

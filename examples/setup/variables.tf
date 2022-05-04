@@ -75,23 +75,26 @@ variable "vnet_subnets" {
   }
 }
 
-
-variable "subscription_id" {
+variable "client_id" {
   type        = string
-  description = "this is the azure subscription id"
+  description = "this is the azure client id"
+  sensitive = true
 }
 
-variable "tenant_id" {
+variable "client_secret" {
   type        = string
-  description = "this is tenant id"
+  description = "this is the azure client secret"
+  sensitive = true
 }
 
-variable "hcp_client_id" {
+variable "prefix" {
   type        = string
-  description = "HashiCorp Cloud Platform client id"
+  description = "Add a prefix to all resoures in module for uniqueness"
+  default     = "vmclient-cts"
 }
 
-variable "hcp_client_secret" {
+variable "cts_version" {
   type        = string
-  description = "HashiCorp Cloud Platform client secret"
+  description = "Consul Terraform Sync version"
+  default = "0.5.2"
 }

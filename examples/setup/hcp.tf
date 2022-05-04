@@ -56,10 +56,12 @@ resource "hcp_hvn" "hvn" {
 
 # Step 2: Create a peering between the HVN and the Vnet. Return a NSG and ASG (security groups)
 module "hcp_peering" {
-  source = "../../hcp"
+  source  = "hashicorp/hcp-consul/azurerm"
+  version = "~> 0.1.0"
+
   # Required
-  tenant_id       = var.tenant_id
-  subscription_id = var.subscription_id
+  tenant_id       = data.azurerm_subscription.current.tenant_id
+  subscription_id = data.azurerm_subscription.current.subscription_id
   hvn             = hcp_hvn.hvn
   vnet_rg         = azurerm_resource_group.rg.name
   vnet_id         = module.network.vnet_id
@@ -84,7 +86,8 @@ resource "hcp_consul_cluster_root_token" "token" {
 
 # Step 3: Create a vm that runs nomad and consul and registers some services
 module "vm_client" {
-  source = "../../hcp-vm-client"
+  source  = "hashicorp/hcp-consul/azurerm//modules/hcp-vm-client"
+  version = "~> 0.1.0"
 
   resource_group = azurerm_resource_group.rg.name
   location       = azurerm_resource_group.rg.location
@@ -99,3 +102,29 @@ module "vm_client" {
   root_token         = hcp_consul_cluster_root_token.token.secret_id
   consul_version     = hcp_consul_cluster.main.consul_version
 }
+
+# Step 4: Create a duplicate vm that runs nomad and consul and registers some services
+# resource "azurerm_network_security_group" "nsg2" {
+#   name                = "${local.cluster_id}-nsg2"
+#   resource_group_name = azurerm_resource_group.rg.name
+#   location            = azurerm_resource_group.rg.location
+# }
+
+# module "vm_client_2" {
+#   source  = "hashicorp/hcp-consul/azurerm//modules/hcp-vm-client"
+#   version = "~> 0.1.0"
+
+#   prefix = "vmclient2"
+#   resource_group = azurerm_resource_group.rg.name
+#   location       = azurerm_resource_group.rg.location
+
+#   nsg_name                 = azurerm_network_security_group.nsg2.name
+#   allowed_ssh_cidr_blocks  = ["0.0.0.0/0"]
+#   allowed_http_cidr_blocks = ["0.0.0.0/0"]
+#   subnet_id                = module.network.vnet_subnets[0]
+
+#   client_config_file = hcp_consul_cluster.main.consul_config_file
+#   client_ca_file     = hcp_consul_cluster.main.consul_ca_file
+#   root_token         = hcp_consul_cluster_root_token.token.secret_id
+#   consul_version     = hcp_consul_cluster.main.consul_version
+# }

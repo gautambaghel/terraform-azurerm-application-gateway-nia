@@ -24,18 +24,11 @@ terraform {
 
 provider "azurerm" {
   features {}
-  subscription_id = var.subscription_id
-  tenant_id       = var.tenant_id
 }
 
-provider "azuread" {
-  tenant_id = var.tenant_id
-}
+provider "azuread" {}
 
-provider "hcp" {
-  client_id = var.hcp_client_id
-  client_secret = var.hcp_client_secret
-}
+provider "hcp" {}
 
 provider "consul" {
   address    = hcp_consul_cluster.main.consul_public_endpoint_url

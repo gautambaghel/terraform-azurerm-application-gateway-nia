@@ -17,13 +17,22 @@ setup_cts_files () {
     echo "${cts_vars}" | base64 -d > cts-example-basic.tfvars
 }
 
+setup_az () {
+    echo "export ARM_SUBSCRIPTION_ID=${arm_subscription_id}" >> set_env.sh
+    echo "export ARM_TENANT_ID=${arm_tenant_id}" >> set_env.sh
+    echo "export ARM_CLIENT_ID=${arm_client_id}" >> set_env.sh
+    echo "export ARM_CLIENT_SECRET=${arm_client_secret}" >> set_env.sh
+    source ./set_env.sh
+}
+
 setup_deps
 setup_cts_files
+setup_az
 
+# Clone the repo to get the files
 git clone --branch hashicups https://github.com/gautambaghel/terraform-azurerm-application-gateway-nia
 
 mv cts-config-basic.hcl terraform-azurerm-application-gateway-nia/examples
 mv cts-example-basic.tfvars terraform-azurerm-application-gateway-nia/examples
 
-# Need to do az login here to proceed further
 cd terraform-azurerm-application-gateway-nia/examples && consul-terraform-sync -config-file cts-config-basic.hcl
