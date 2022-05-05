@@ -114,7 +114,19 @@ You'll notice that you have a few files under `examples/`, which represent a bsi
 
 ![Azure env config](screenshots/04-azure-environment-setup.png)
 
-2. Set the following environment variables, this is required so that CTS VM can create/update Azure Application Gateway
+2. Uncomment the Client Id/Secret variables in the latter half of the [variables.tf](https://github.com/gautambaghel/terraform-azurerm-application-gateway-nia/blob/hashicups/examples/setup/variables.tf?plain=1#L90-L100) file
+
+   ```terraform
+   variable "client_id" {
+      ...
+   }
+
+   variable "client_secret" {
+      ...
+   }
+   ```
+
+3. Set the following environment variables, this is required so that CTS VM can create/update Azure Application Gateway
 
    ```shell
    export TF_VAR_ARM_CLIENT_SECRET=""
@@ -123,7 +135,21 @@ You'll notice that you have a few files under `examples/`, which represent a bsi
    export TF_VAR_ARM_SUBSCRIPTION_ID=""
    ```
 
-3. Uncomment the latter half of [cts.tf](https://github.com/gautambaghel/terraform-azurerm-application-gateway-nia/blob/hashicups/examples/setup/cts.tf?plain=1#L138-L198)  to create the Azure VM and run CTS
+4. Uncomment the latter half of [cts.tf](https://github.com/gautambaghel/terraform-azurerm-application-gateway-nia/blob/hashicups/examples/setup/cts.tf?plain=1#L138-L198) file to create the Azure VM and run CTS
+
+   ```terraform
+   resource "azurerm_public_ip" "public_ip" {
+      ....
+   }
+   resource "azurerm_network_interface" "client_nic" {
+      ....
+   }
+   resource "azurerm_linux_virtual_machine" "vm" {
+      ....
+   }    
+   ```
+   
+   *** 
 
    ```shell
    terraform apply
@@ -140,6 +166,12 @@ Azure Application Gateway will be created if it doesn't already exists
 ### Step 3
 
 1. Uncomment the latter half of [hcp.tf](https://github.com/gautambaghel/terraform-azurerm-application-gateway-nia/blob/hashicups/examples/setup/hcp.tf?plain=1#L107-L130) to create a duplicate VM with HashiCups services registered on Consul
+
+```terraform
+resource "azurerm_network_security_group" "nsg2" {
+   ....
+}  
+```
 
 ```shell
 $ terraform init && terraform apply

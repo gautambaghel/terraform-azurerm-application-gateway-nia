@@ -75,18 +75,6 @@ variable "vnet_subnets" {
   }
 }
 
-variable "client_id" {
-  type        = string
-  description = "this is the azure client id"
-  sensitive = true
-}
-
-variable "client_secret" {
-  type        = string
-  description = "this is the azure client secret"
-  sensitive = true
-}
-
 variable "prefix" {
   type        = string
   description = "Add a prefix to all resoures in module for uniqueness"
@@ -98,3 +86,15 @@ variable "cts_version" {
   description = "Consul Terraform Sync version"
   default = "0.5.2"
 }
+
+# variable "client_id" {
+#   type        = string
+#   description = "this is the azure client id"
+#   sensitive = true
+# }
+
+# variable "client_secret" {
+#   type        = string
+#   description = "this is the azure client secret"
+#   sensitive = true
+# }
