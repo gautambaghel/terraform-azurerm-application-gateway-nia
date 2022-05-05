@@ -160,20 +160,22 @@ Azure Application Gateway's backend pool will be updated
 
 ### Cleanup
 
-1. SSH into the CTS VM to destroy Azure Application Gateway
+1. Destroy Azure Application Gateway, SSH into the CTS VM, become admin & set Azure env vars
 
    ```shell
    ssh adminuser@CTS_VM_IP_ADDRESS
+   sudo su
+   source /home/adminuser/set_env.sh
    ```
 
-2. Go to `terraform-azurerm-application-gateway-nia/examples`.
+2. Go to `terraform-azurerm-application-gateway-nia/examples/sync-tasks/testing/`.
    ```shell
-   cd terraform-azurerm-application-gateway-nia/examples
+   cd terraform-azurerm-application-gateway-nia/examples/sync-tasks/testing/
    ```
 
 3. Delete resources created by CTS.
    ```shell
-   ./terraform destroy -auto-approve
+   ../../terraform destroy -auto-approve
    ```
 
 4. Exit the CTS VM
