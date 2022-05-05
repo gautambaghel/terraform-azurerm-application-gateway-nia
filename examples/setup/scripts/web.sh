@@ -5,7 +5,7 @@ sudo apt-get install curl -y
 
 curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add -
 apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
-apt update && apt install -y consul=${CONSUL_VERSION}-1 unzip
+apt update && apt install -y consul-enterprise=${CONSUL_VERSION}"*" unzip
 
 # Install Envoy
 curl https://func-e.io/install.sh | bash -s -- -b /usr/local/bin

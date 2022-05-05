@@ -66,5 +66,6 @@ resource "azurerm_linux_virtual_machine" "consul" {
     SERVER_PRIVATE_KEY = tls_private_key.server_key.private_key_pem
     BOOTSTRAP_TOKEN    = random_uuid.consul_bootstrap_token.result
     CONSUL_VERSION     = var.consul_version
+    CONSUL_LICENSE     = base64encode(file("consul.hclic"))
   }))
 }

@@ -40,3 +40,6 @@ cts-config-*.hcl
 cts-example-*.tfvars
 sync-tasks/
 examples/terraform
+
+# Ignore Consul licenses
+*.hclic

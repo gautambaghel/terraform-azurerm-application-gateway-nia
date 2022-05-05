@@ -5,7 +5,7 @@ sudo apt-get install curl -y
 
 curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
 sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
-apt update && apt install -y consul=${CONSUL_VERSION}-1 unzip
+apt update && apt install -y consul-enterprise=${CONSUL_VERSION}"*" unzip
 
 local_ip=`ip -o route get to 169.254.169.254 | sed -n 's/.*src \([0-9.]\+\).*/\1/p'`
 mkdir -p /etc/consul.d/certs
@@ -21,6 +21,8 @@ EOF
 cat > /etc/consul.d/certs/server-key.pem <<- EOF
 ${SERVER_PRIVATE_KEY}
 EOF
+
+echo "${CONSUL_LICENSE}" | base64 -d > /etc/consul.d/consul.hclic
 
 # Modify the default consul.hcl file
 cat > /etc/consul.d/consul.hcl <<- EOF
@@ -43,6 +45,8 @@ acl = {
 }
 
 server = true
+
+license_path: "/etc/consul.d/consul.hclic"
 
 bind_addr = "0.0.0.0"
 

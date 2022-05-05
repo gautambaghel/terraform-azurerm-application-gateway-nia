@@ -149,6 +149,11 @@ This module repository includes an example. The setup for the example includes:
    $ cd examples/setup
    ```
 
+1. Paste you enterprise license on a file named consul.hclic in `examples/setup/` directory.
+   ```shell
+   $ echo "CONSUL_LICENSE_BLOB" > consul.hclic
+   ```
+
 1. Generate an SSH key so you can log into the machine under the `./.ssh`
    directory.
    ```shell
